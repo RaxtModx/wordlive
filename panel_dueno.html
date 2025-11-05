@@ -1,0 +1,212 @@
+<h1 style='color:white;background:black;text-align:center;padding:20px'>Panel Dueño</h1>
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Panel del Dueño — Word Lives</title>
+  <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore-compat.js"></script>
+  <style>
+    :root {
+      --bg: #0b0b0b;
+      --panel: #121212;
+      --accent: #ff7a18;
+      --muted: #bbb;
+    }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: #fff;
+      font-family: "Inter", sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 40px 20px;
+    }
+
+    h1 {
+      color: var(--accent);
+      margin-bottom: 10px;
+    }
+
+    .card {
+      background: var(--panel);
+      border-radius: 14px;
+      padding: 20px;
+      width: 100%;
+      max-width: 480px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.6);
+    }
+
+    label {
+      font-size: 14px;
+      color: var(--muted);
+      display: block;
+      margin-top: 10px;
+    }
+
+    input {
+      width: 100%;
+      padding: 10px;
+      border-radius: 8px;
+      border: 1px solid #333;
+      background: #0d0d0d;
+      color: #fff;
+      margin-top: 4px;
+    }
+
+    button {
+      background: var(--accent);
+      color: #111;
+      border: none;
+      border-radius: 10px;
+      padding: 10px 15px;
+      margin-top: 15px;
+      cursor: pointer;
+      font-weight: 700;
+      width: 100%;
+      transition: 0.3s;
+    }
+
+    button:hover {
+      background: #ffa347;
+    }
+
+    .logout {
+      background: #333;
+      color: var(--accent);
+      margin-top: 25px;
+    }
+
+    ul {
+      list-style: none;
+      padding: 0;
+      margin-top: 20px;
+    }
+
+    li {
+      background: #1a1a1a;
+      padding: 10px;
+      border-radius: 8px;
+      margin-bottom: 8px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    li button {
+      background: #ff3333;
+      color: white;
+      border: none;
+      padding: 6px 10px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 600;
+    }
+
+    li button:hover {
+      background: #ff5a5a;
+    }
+
+    .msg {
+      text-align: center;
+      color: var(--muted);
+      font-size: 14px;
+      margin-top: 10px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Panel del Dueño</h1>
+  <div class="card">
+    <h3>Crear Usuario Admin</h3>
+    <label for="newEmail">Correo</label>
+    <input type="email" id="newEmail" placeholder="ejemplo@correo.com">
+    <label for="newPass">Contraseña</label>
+    <input type="password" id="newPass" placeholder="********">
+    <button id="createAdmin">Crear Admin</button>
+
+    <h3>Usuarios Admin Existentes</h3>
+    <ul id="adminList"></ul>
+
+    <button class="logout" id="logoutBtn">Cerrar Sesión</button>
+    <div class="msg" id="msg"></div>
+  </div>
+
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyBvfUIj4VJOnwFPHsGZvXSSQ8CIIg5Gabk",
+      authDomain: "word-lives.firebaseapp.com",
+      projectId: "word-lives",
+      storageBucket: "word-lives.firebasestorage.app",
+      messagingSenderId: "792720149975",
+      appId: "1:792720149975:web:53e90b7e2d6709c59c8f92"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db = firebase.firestore();
+
+    const msg = (t)=>{ const el=document.getElementById('msg'); el.textContent=t; setTimeout(()=>el.textContent='',2500); };
+
+    // Cargar lista de admins
+    async function loadAdmins() {
+      const list = document.getElementById('adminList');
+      list.innerHTML = '';
+      const snap = await db.collection('users').where('role','==','admin').get();
+      if (snap.empty) {
+        list.innerHTML = '<li>No hay admins registrados</li>';
+        return;
+      }
+      snap.forEach(doc=>{
+        const data = doc.data();
+        const li = document.createElement('li');
+        li.innerHTML = `<span>${data.email}</span> <button data-id="${doc.id}" data-email="${data.email}">Eliminar</button>`;
+        li.querySelector('button').addEventListener('click',()=>deleteAdmin(doc.id, data.email));
+        list.appendChild(li);
+      });
+    }
+
+    async function deleteAdmin(id, email){
+      if(!confirm(`¿Eliminar admin ${email}?`)) return;
+      try {
+        // Buscar usuario en Auth
+        const userRef = db.collection('users').doc(id);
+        await userRef.delete();
+        msg('Admin eliminado de Firestore');
+        loadAdmins();
+      } catch(e){ console.error(e); msg('Error eliminando admin'); }
+    }
+
+    document.getElementById('createAdmin').addEventListener('click', async ()=>{
+      const email = document.getElementById('newEmail').value.trim();
+      const pass = document.getElementById('newPass').value.trim();
+      if(!email || !pass){ msg('Completa todos los campos'); return; }
+
+      try {
+        // Crear usuario real en Authentication
+        const temp = await auth.createUserWithEmailAndPassword(email, pass);
+        await db.collection('users').add({email, role:'admin'});
+        msg('Admin creado correctamente');
+        document.getElementById('newEmail').value='';
+        document.getElementById('newPass').value='';
+        loadAdmins();
+      } catch(e){ 
+        msg('Error creando admin: ' + e.message);
+        console.error(e);
+      }
+    });
+
+    document.getElementById('logoutBtn').addEventListener('click', async ()=>{
+      await auth.signOut();
+      window.location.href = 'index.html';
+    });
+
+    loadAdmins();
+  </script>
+</body>
+</html>

@@ -1,0 +1,109 @@
+
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Word Lives</title>
+  <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore-compat.js"></script>
+  <style>
+    :root { --bg:#0b0b0b; --accent:#ff7a18; --panel:#111; --muted:#9a9a9a }
+    body { margin:0; background:linear-gradient(180deg,var(--bg),#070707); color:#eee; font-family:Inter,system-ui,Segoe UI }
+    header { display:flex; justify-content:space-between; align-items:center; padding:20px; background:#111; }
+    .brand { font-weight:800; color:var(--accent); font-size:20px; }
+    .btn { background:var(--accent); color:#111; border:0; padding:10px 16px; border-radius:10px; font-weight:700; cursor:pointer; }
+    .btn:hover { background:#ffa94d; }
+    main { max-width:1000px; margin:40px auto; padding:0 20px; }
+    .mods { display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:18px; }
+    .mod-card { background:#121212; border-radius:10px; padding:16px; box-shadow:0 6px 14px rgba(0,0,0,0.5); }
+    .mod-title { color:var(--accent); font-weight:700; }
+    .mod-desc { display:none; color:var(--muted); margin-top:8px; }
+    .view-more { margin-top:10px; background:none; border:1px solid var(--accent); color:var(--accent); padding:6px 10px; border-radius:6px; cursor:pointer; }
+    .overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.7); align-items:center; justify-content:center; }
+    .panel { background:#0f0f0f; padding:24px; border-radius:12px; width:90%; max-width:400px; }
+    .input { width:100%; padding:10px; border-radius:6px; border:1px solid #222; background:#0b0b0b; color:#fff; margin-bottom:12px; }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="brand">Word Lives</div>
+    <div>
+      <button class="btn" id="btnAdmin">Panel Admin</button>
+      <button class="btn" id="btnOwner">Panel Dueño</button>
+    </div>
+  </header>
+  <main>
+    <h2>Mods disponibles</h2>
+    <div class="mods" id="mods"></div>
+  </main>
+
+  <div id="adminLogin" class="overlay">
+    <div class="panel">
+      <h3>Login Admin</h3>
+      <input id="adminEmail" class="input" placeholder="Correo">
+      <input id="adminPass" class="input" type="password" placeholder="Contraseña">
+      <button class="btn" id="loginAdminBtn" style="width:100%">Entrar</button>
+    </div>
+  </div>
+
+  <div id="ownerLogin" class="overlay">
+    <div class="panel">
+      <h3>Login Dueño</h3>
+      <input id="ownerEmail" class="input" placeholder="Correo">
+      <input id="ownerPass" class="input" type="password" placeholder="Contraseña">
+      <button class="btn" id="loginOwnerBtn" style="width:100%">Entrar</button>
+    </div>
+  </div>
+
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyBvfUIj4VJOnwFPHsGZvXSSQ8CIIg5Gabk",
+      authDomain: "word-lives.firebaseapp.com",
+      projectId: "word-lives",
+      storageBucket: "word-lives.firebasestorage.app",
+      messagingSenderId: "792720149975",
+      appId: "1:792720149975:web:53e90b7e2d6709c59c8f92"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db = firebase.firestore();
+
+    const modsContainer = document.getElementById("mods");
+    async function loadMods(){
+      const snap = await db.collection("mods").orderBy("date","desc").get();
+      modsContainer.innerHTML="";
+      snap.forEach(doc=>{
+        const data=doc.data();
+        const card=document.createElement("div");
+        card.className="mod-card";
+        card.innerHTML=`<div class="mod-title">${data.title}</div><button class="view-more">Ver más</button><div class="mod-desc">${data.desc}</div>`;
+        const btn=card.querySelector(".view-more");
+        const desc=card.querySelector(".mod-desc");
+        btn.onclick=()=>{const s=desc.style.display==='block';desc.style.display=s?'none':'block';btn.textContent=s?'Ver más':'Ver menos';};
+        modsContainer.appendChild(card);
+      });
+    }
+    loadMods();
+
+    const adminLogin=document.getElementById("adminLogin");
+    const ownerLogin=document.getElementById("ownerLogin");
+    document.getElementById("btnAdmin").onclick=()=>adminLogin.style.display="flex";
+    document.getElementById("btnOwner").onclick=()=>ownerLogin.style.display="flex";
+
+    document.getElementById("loginAdminBtn").onclick=async()=>{
+      const e=document.getElementById("adminEmail").value.trim();
+      const p=document.getElementById("adminPass").value;
+      try{await auth.signInWithEmailAndPassword(e,p);window.location.href="panel_admin.html";}
+      catch(err){alert("Error: "+err.message)}
+    };
+    document.getElementById("loginOwnerBtn").onclick=async()=>{
+      const e=document.getElementById("ownerEmail").value.trim();
+      const p=document.getElementById("ownerPass").value;
+      try{await auth.signInWithEmailAndPassword(e,p);window.location.href="panel_dueno.html";}
+      catch(err){alert("Error: "+err.message)}
+    };
+  </script>
+</body>
+</html>

@@ -1,0 +1,184 @@
+<h1 style='color:white;background:black;text-align:center;padding:20px'>Panel Admin</h1>
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Panel Admin | Word Lives</title>
+  <style>
+    body {
+      background-color: #0d0d0d;
+      color: #fff;
+      font-family: 'Arial', sans-serif;
+      text-align: center;
+      margin: 0;
+      padding: 0;
+    }
+
+    h1 {
+      background-color: #1a1a1a;
+      color: orange;
+      padding: 20px;
+      margin: 0;
+    }
+
+    form {
+      background-color: #1a1a1a;
+      border-radius: 10px;
+      padding: 20px;
+      margin: 20px auto;
+      width: 90%;
+      max-width: 500px;
+      box-shadow: 0 0 10px rgba(255, 165, 0, 0.3);
+    }
+
+    input, textarea {
+      width: 90%;
+      margin: 10px 0;
+      padding: 10px;
+      border: none;
+      border-radius: 5px;
+      background-color: #2a2a2a;
+      color: white;
+    }
+
+    button {
+      background-color: orange;
+      border: none;
+      border-radius: 5px;
+      padding: 10px 20px;
+      margin: 10px;
+      cursor: pointer;
+      color: #000;
+      font-weight: bold;
+      transition: 0.3s;
+    }
+
+    button:hover {
+      background-color: #ff6600;
+    }
+
+    .mod {
+      background-color: #1a1a1a;
+      margin: 20px auto;
+      padding: 15px;
+      border-radius: 8px;
+      width: 90%;
+      max-width: 500px;
+      box-shadow: 0 0 5px rgba(255,165,0,0.3);
+    }
+
+    img {
+      max-width: 100%;
+      border-radius: 10px;
+      margin-top: 10px;
+    }
+
+  </style>
+</head>
+<body>
+  <h1>Panel de Administración</h1>
+
+  <form id="addModForm">
+    <h3>Agregar / Editar Mod</h3>
+    <input type="text" id="modId" placeholder="(Deja vacío para crear uno nuevo)">
+    <input type="text" id="modTitle" placeholder="Título del mod" required>
+    <textarea id="modDescription" placeholder="Descripción" required></textarea>
+    <input type="file" id="modImage">
+    <button type="submit">Guardar Mod</button>
+  </form>
+
+  <div id="modsContainer"></div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
+    import { getFirestore, collection, addDoc, getDocs, doc, updateDoc, deleteDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
+    import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-storage.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyBvfUIj4VJOnwFPHsGZvXSSQ8CIIg5Gabk",
+      authDomain: "word-lives.firebaseapp.com",
+      projectId: "word-lives",
+      storageBucket: "word-lives.firebasestorage.app",
+      messagingSenderId: "792720149975",
+      appId: "1:792720149975:web:53e90b7e2d6709c59c8f92"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    const storage = getStorage(app);
+
+    const addModForm = document.getElementById("addModForm");
+    const modsContainer = document.getElementById("modsContainer");
+
+    // Cargar mods
+    async function loadMods() {
+      modsContainer.innerHTML = "";
+      const querySnapshot = await getDocs(collection(db, "mods"));
+      querySnapshot.forEach((docSnap) => {
+        const mod = docSnap.data();
+        const div = document.createElement("div");
+        div.classList.add("mod");
+        div.innerHTML = `
+          <h3>${mod.title}</h3>
+          <p>${mod.description}</p>
+          ${mod.image ? `<img src="${mod.image}" alt="${mod.title}">` : ""}
+          <button onclick="editMod('${docSnap.id}')">Editar</button>
+          <button onclick="deleteMod('${docSnap.id}')">Eliminar</button>
+        `;
+        modsContainer.appendChild(div);
+      });
+    }
+
+    window.editMod = async (id) => {
+      const docRef = doc(db, "mods", id);
+      const modSnap = await getDoc(docRef);
+      if (modSnap.exists()) {
+        const mod = modSnap.data();
+        document.getElementById("modId").value = id;
+        document.getElementById("modTitle").value = mod.title;
+        document.getElementById("modDescription").value = mod.description;
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }
+    };
+
+    window.deleteMod = async (id) => {
+      if (confirm("¿Seguro que deseas eliminar este mod?")) {
+        await deleteDoc(doc(db, "mods", id));
+        alert("🗑️ Mod eliminado");
+        loadMods();
+      }
+    };
+
+    addModForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const id = document.getElementById("modId").value;
+      const title = document.getElementById("modTitle").value;
+      const description = document.getElementById("modDescription").value;
+      const imageFile = document.getElementById("modImage").files[0];
+
+      let imageUrl = "";
+      if (imageFile) {
+        const imageRef = ref(storage, "mods/" + imageFile.name);
+        await uploadBytes(imageRef, imageFile);
+        imageUrl = await getDownloadURL(imageRef);
+      }
+
+      if (id) {
+        const docRef = doc(db, "mods", id);
+        await updateDoc(docRef, { title, description, image: imageUrl || undefined });
+        alert("✅ Mod actualizado");
+      } else {
+        await addDoc(collection(db, "mods"), { title, description, image: imageUrl });
+        alert("✅ Mod agregado");
+      }
+
+      addModForm.reset();
+      loadMods();
+    });
+
+    loadMods();
+  </script>
+</body>
+</html>
